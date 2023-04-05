@@ -3,12 +3,29 @@ const app = express();
 const fs = require("fs");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
+require("dotenv").config();
+const { Configuration, OpenAIApi } = require("openai");
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+async function openaiCall() {
+  const completion = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: [{ role: "user", content: "Hello world" }],
+  });
+  return completion.data.choices[0].message.content;
+}
 
 // This method will save the binary content of the request as a file.
-app.post("/binary-upload", (req, res) => {
+app.post("/binary-upload", async (req, res) => {
   console.log("Saving file");
   req.pipe(fs.createWriteStream("./uploads/image" + Date.now() + ".png"));
-  res.end("OK");
+  let answer = await openaiCall();
+  console.log(answer);
+  res.send({ answer: answer });
 });
 
 // This method will save a "photo" field from the request as a file.
