@@ -3,15 +3,36 @@ const app = express();
 const bodyParser = require("body-parser");
 const fs = require("fs");
 const multer = require("multer");
-const upload = multer({ dest: "uploads/" });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./uploads");
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + "-" + Date.now() + ".jpg");
+  },
+});
+
+const upload = multer({
+  storage: storage,
+});
 require("dotenv").config();
 const { Configuration, OpenAIApi } = require("openai");
 const jsonParser = bodyParser.json();
+const rateLimit = require("express-rate-limit");
 
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: "There have been to many requests",
+});
 
 async function openaiCall(chatMessage) {
   try {
@@ -25,6 +46,8 @@ async function openaiCall(chatMessage) {
   }
 }
 
+let users = [];
+
 // This method will save the binary content of the request as a file.
 app.post("/binary-upload", async (req, res) => {
   console.log("Saving file");
@@ -35,22 +58,27 @@ app.post("/binary-upload", async (req, res) => {
 });
 
 // This method will save a "photo" field from the request as a file.
-app.post("/multipart-upload", upload.single("photo"), async (req, res) => {
+app.post("/problem", limiter, upload.single("photo"), async (req, res) => {
   // You can access other HTTP parameters. They are located in the body object.
   console.log(req.body);
-  let answer = await openaiCall("I am uploading a file.");
+  if (req.body.id == undefined || req.file == undefined) {
+    res.send({ status: "Error" });
+  }
+
+  let answer = await openaiCall("tell me a joke");
   console.log(answer);
   res.send({ answer: answer });
 });
 
-app.post("/chat", jsonParser, async (req, res) => {
+app.post("/chat", limiter, jsonParser, async (req, res) => {
   console.log(req.body);
   let answer = await openaiCall(req.body.chat);
   res.send({ answer: answer });
 });
 
-app.get("/ping", (req, res) => {
-  res.send("pong");
+app.post("/ping", jsonParser, async (req, res) => {
+  console.log("User " + req.body.id + " is Online");
+  res.send({ status: "Online" });
 });
 
 app.get("/", (req, res) => {
