@@ -56,25 +56,28 @@ async function openaiVisionCall(imagePath) {
   const mimeType = "image/jpg";
   // Create the data URI
   const dataURI = `data:${mimeType};base64,${base64}`;
-
-  const completion = await openai.createChatCompletion({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "What is the answer to this problem?" },
-          {
-            type: "image_url",
-            image_url: {
-              url: dataURI,
+  try {
+    const completion = await openai.createChatCompletion({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is the answer to this problem?" },
+            {
+              type: "image_url",
+              image_url: {
+                url: dataURI,
+              },
             },
-          },
-        ],
-      },
-    ],
-  });
-  return completion.data.choices[0].message.content;
+          ],
+        },
+      ],
+    });
+    return completion.data.choices[0].message.content;
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 let users = [];
