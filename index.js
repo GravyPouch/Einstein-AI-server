@@ -37,7 +37,7 @@ const limiter = rateLimit({
 async function openaiCall(chatMessage) {
   try {
     const completion = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [{ role: "user", content: chatMessage }],
     });
     return completion.data.choices[0].message.content;
@@ -46,16 +46,38 @@ async function openaiCall(chatMessage) {
   }
 }
 
-let users = [];
+async function openaiVisionCall(imagePath) {
+  console.log(imagePath);
+  const img = fs.readFileSync(imagePath);
 
-// This method will save the binary content of the request as a file.
-app.post("/binary-upload", async (req, res) => {
-  console.log("Saving file");
-  req.pipe(fs.createWriteStream("./uploads/image" + Date.now() + ".png"));
-  let answer = await openaiCall();
-  console.log(answer);
-  res.send({ answer: answer });
-});
+  // Convert the buffer into a base64-encoded string
+  const base64 = Buffer.from(img).toString("base64");
+  // Set MIME type for PNG image
+  const mimeType = "image/jpg";
+  // Create the data URI
+  const dataURI = `data:${mimeType};base64,${base64}`;
+
+  const completion = await openai.createChatCompletion({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What is the answer to this problem?" },
+          {
+            type: "image_url",
+            image_url: {
+              url: dataURI,
+            },
+          },
+        ],
+      },
+    ],
+  });
+  return completion.data.choices[0].message.content;
+}
+
+let users = [];
 
 // This method will save a "photo" field from the request as a file.
 app.post("/problem", limiter, upload.single("photo"), async (req, res) => {
@@ -65,7 +87,9 @@ app.post("/problem", limiter, upload.single("photo"), async (req, res) => {
     res.send({ status: "Error" });
   }
 
-  let answer = await openaiCall("tell me a joke");
+  const ImgPath = await req.file.filename;
+
+  let answer = await openaiVisionCall(`./uploads/${ImgPath}`);
   console.log(answer);
   res.send({ answer: answer });
 });
