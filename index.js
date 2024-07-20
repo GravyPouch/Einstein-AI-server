@@ -63,7 +63,10 @@ async function openaiVisionCall(imagePath) {
         {
           role: "user",
           content: [
-            { type: "text", text: "What is the answer to this problem?" },
+            {
+              type: "text",
+              text: "What is the answer to this homework problem? Answer only in plain text, DO NOT USE MARKDOWN.",
+            },
             {
               type: "image_url",
               image_url: {
